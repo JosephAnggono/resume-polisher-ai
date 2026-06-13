@@ -219,3 +219,9 @@ button:disabled {
     font-size: 34px;
   }
 }
+
+.info {
+  color: #2563eb;
+  font-weight: 700;
+  font-size: 14px;
+}

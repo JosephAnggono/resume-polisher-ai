@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.schemas import ResumeRequest, BulletRequest, AnalyzeResponse
@@ -6,7 +6,7 @@ from app.services.resume_parser import extract_bullets
 from app.services.resume_scorer import score_bullet
 from app.services.bullet_polisher import polish_bullet
 from app.services.job_matcher import match_jobs
-
+from app.services.document_parser import extract_text_from_file
 
 app = FastAPI(
     title="Resume Polisher AI API",
@@ -79,7 +79,36 @@ def match_relevant_jobs(request: ResumeRequest):
     return {
         "job_matches": jobs
     }
+    
+@app.post("/api/v1/upload-resume")
+async def upload_resume(file: UploadFile = File(...)):
+    try:
+        file_bytes = await file.read()
+        extracted_text = extract_text_from_file(file.filename, file_bytes)
 
+        if not extracted_text:
+            raise HTTPException(
+                status_code=400,
+                detail="No text could be extracted from the uploaded resume."
+            )
+
+        bullets = extract_bullets(extracted_text)
+
+        return {
+            "filename": file.filename,
+            "extracted_text": extracted_text,
+            "extracted_bullets": bullets,
+            "bullet_count": len(bullets)
+        }
+
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to process resume file: {str(error)}"
+        )
 
 @app.post("/api/v1/analyze", response_model=AnalyzeResponse)
 def analyze_resume(request: ResumeRequest):

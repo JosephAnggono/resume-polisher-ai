@@ -18,6 +18,42 @@ function App() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [uploadedFileName, setUploadedFileName] = useState("");
+
+  async function uploadResumeFile(event) {
+    const file = event.target.files[0];
+
+    if (!file) return;
+
+    setUploading(true);
+    setError("");
+    setResult(null);
+    setUploadedFileName(file.name);
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/upload-resume`, {
+        method: "POST",
+        body: formData
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Failed to upload resume");
+      }
+
+      const data = await response.json();
+
+      setResumeText(data.extracted_text);
+    } catch (err) {
+      setError(err.message || "Something went wrong while uploading the file");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   async function analyzeResume() {
     setLoading(true);
@@ -179,6 +215,21 @@ ${result.summary_feedback.map((item) => `- ${item}`).join("\n")}
               </select>
             </div>
           </div>
+
+          <label>Upload Resume File</label>
+          <input
+            type="file"
+            accept=".pdf,.docx"
+            onChange={uploadResumeFile}
+          />
+
+          {uploading && <p className="info">Extracting resume text...</p>}
+
+          {uploadedFileName && (
+            <p className="info">
+              Uploaded file: <strong>{uploadedFileName}</strong>
+            </p>
+          )}
 
           <label>Resume Text</label>
           <textarea
