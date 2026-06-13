@@ -37,7 +37,9 @@ Resume Polisher AI helps users improve resume bullet points for a target role. U
 
 - Rule-based bullet extraction
 - Resume scoring heuristics
-- Keyword-based job matching
+- TF-IDF vector-based job matching
+- Cosine similarity ranking
+- Skill gap feedback
 - Deterministic bullet rewriting baseline
 
 ### DevOps
@@ -167,13 +169,13 @@ Frontend Output + Download
 
 ## Current Status
 
-The current version is a full-stack MVP. It supports pasted resume text, bullet extraction, scoring, rewriting, feedback generation, job matching, and result download.
+The current version is a full-stack MVP. It supports PDF/DOCX resume upload, text extraction, bullet extraction, scoring, rewriting, feedback generation, TF-IDF vector-based job matching, Dockerized local execution, and result download.
 
 ## Planned Improvements
 
 - PDF and DOCX resume upload
 - Resume section extraction
-- Sentence embedding job matching
+- Transformer embedding job matching
 - Vector database retrieval
 - LLM-based bullet rewriting
 - Skill gap analysis
