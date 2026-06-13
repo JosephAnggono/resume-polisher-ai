@@ -1,8 +1,33 @@
 import re
-from typing import List
+from typing import List, Optional
 
 
 BULLET_MARKERS = {"-", "•", "*", "‣", "◦", "▪", "▫", "●"}
+
+ACTION_VERBS = {
+    "built",
+    "developed",
+    "designed",
+    "implemented",
+    "created",
+    "trained",
+    "deployed",
+    "optimized",
+    "analyzed",
+    "engineered",
+    "automated",
+    "evaluated",
+    "integrated",
+    "conducted",
+    "mentored",
+    "coordinated",
+    "contributed",
+    "improved",
+    "led",
+    "managed",
+    "researched",
+    "implemented",
+}
 
 
 def is_section_heading(line: str) -> bool:
@@ -23,6 +48,13 @@ def is_section_heading(line: str) -> bool:
         "INTERESTS",
         "PROJECTS",
         "EXPERIENCE",
+        "CERTIFICATIONS",
+        "PUBLICATIONS",
+        "SUMMARY",
+        "PROFILE",
+        "AWARDS",
+        "ACTIVITIES",
+        "VOLUNTEERING",
     }
 
     return cleaned.upper() in common_headings
@@ -38,6 +70,83 @@ def is_bullet_with_text(line: str) -> bool:
 
 def clean_bullet_prefix(line: str) -> str:
     return re.sub(r"^([-•*‣◦▪▫●]|\d+[.)])\s+", "", line.strip()).strip()
+
+
+def should_skip_bullet(bullet: Optional[str]) -> bool:
+    """
+    Skip bullets that are not achievement/experience/project bullets.
+
+    Examples skipped:
+    - Programming: Python, C++, MATLAB
+    - Languages: English, Mandarin, Indonesian
+    - AI/ML Frameworks: PyTorch, TensorFlow
+    - Cover-letter paragraphs accidentally merged into resume bullets
+    """
+
+    if not bullet:
+        return True
+
+    text = str(bullet).lower().strip("-•* ").strip()
+
+    if not text:
+        return True
+
+    skip_prefixes = [
+        "languages:",
+        "programming:",
+        "programming &",
+        "tools:",
+        "tools &",
+        "ai/ml",
+        "llm &",
+        "data:",
+        "mathematics:",
+        "interests",
+        "technical skills",
+        "frameworks:",
+        "mlops",
+        "skills:",
+        "awards:",
+    ]
+
+    if any(text.startswith(prefix) for prefix in skip_prefixes):
+        return True
+
+    cover_letter_phrases = [
+        "sincerely",
+        "thank you for considering",
+        "my curriculum vitae is attached",
+        "i welcome the opportunity",
+        "i am deeply impressed",
+        "dear hiring manager",
+        "dear recruiter",
+        "to whom it may concern",
+    ]
+
+    if any(phrase in text for phrase in cover_letter_phrases):
+        return True
+
+    words = text.split()
+    first_word = words[0] if words else ""
+
+    looks_like_skill_list = ":" in text and text.count(",") >= 2
+
+    if looks_like_skill_list and first_word not in ACTION_VERBS:
+        return True
+
+    return False
+
+
+def append_current_bullet(
+    bullets: List[str],
+    current_bullet: Optional[str]
+) -> None:
+    """
+    Safely append current bullet only if it exists and should not be skipped.
+    """
+
+    if current_bullet and not should_skip_bullet(current_bullet):
+        bullets.append(current_bullet)
 
 
 def extract_bullets(resume_text: str) -> List[str]:
@@ -59,36 +168,32 @@ def extract_bullets(resume_text: str) -> List[str]:
     """
 
     raw_lines = [line.strip() for line in resume_text.splitlines()]
-    bullets = []
+    bullets: List[str] = []
 
-    current_bullet = None
+    current_bullet: Optional[str] = None
     waiting_for_bullet_text = False
 
     for line in raw_lines:
         if not line:
-            if current_bullet:
-                bullets.append(current_bullet)
-                current_bullet = None
+            append_current_bullet(bullets, current_bullet)
+            current_bullet = None
             waiting_for_bullet_text = False
             continue
 
         if is_section_heading(line):
-            if current_bullet:
-                bullets.append(current_bullet)
-                current_bullet = None
+            append_current_bullet(bullets, current_bullet)
+            current_bullet = None
             waiting_for_bullet_text = False
             continue
 
         if is_bullet_marker_only(line):
-            if current_bullet:
-                bullets.append(current_bullet)
-                current_bullet = None
+            append_current_bullet(bullets, current_bullet)
+            current_bullet = None
             waiting_for_bullet_text = True
             continue
 
         if is_bullet_with_text(line):
-            if current_bullet:
-                bullets.append(current_bullet)
+            append_current_bullet(bullets, current_bullet)
 
             bullet_text = clean_bullet_prefix(line)
             current_bullet = f"- {bullet_text}"
@@ -103,7 +208,6 @@ def extract_bullets(resume_text: str) -> List[str]:
         if current_bullet:
             current_bullet = f"{current_bullet} {line}"
 
-    if current_bullet:
-        bullets.append(current_bullet)
+    append_current_bullet(bullets, current_bullet)
 
     return bullets

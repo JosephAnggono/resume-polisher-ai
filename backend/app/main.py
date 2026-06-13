@@ -1,5 +1,10 @@
+import traceback
+
+from io import BytesIO
+
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 
 from app.schemas import ResumeRequest, BulletRequest, AnalyzeResponse
 from app.services.resume_parser import extract_bullets
@@ -7,6 +12,7 @@ from app.services.resume_scorer import score_bullet
 from app.services.bullet_polisher import polish_bullet
 from app.services.job_matcher import match_jobs
 from app.services.document_parser import extract_text_from_file
+from app.services.pdf_report import generate_resume_report_pdf
 
 app = FastAPI(
     title="Resume Polisher AI API",
@@ -84,7 +90,18 @@ def match_relevant_jobs(request: ResumeRequest):
 async def upload_resume(file: UploadFile = File(...)):
     try:
         file_bytes = await file.read()
-        extracted_text = extract_text_from_file(file.filename, file_bytes)
+
+        if not file_bytes:
+            raise HTTPException(
+                status_code=400,
+                detail="Uploaded file is empty."
+            )
+
+        extracted_text = extract_text_from_file(
+            file_bytes=file_bytes,
+            filename=file.filename,
+            content_type=file.content_type,
+        )
 
         if not extracted_text:
             raise HTTPException(
@@ -95,16 +112,18 @@ async def upload_resume(file: UploadFile = File(...)):
         bullets = extract_bullets(extracted_text)
 
         return {
-            "filename": file.filename,
+            "filename": file.filename or "uploaded_resume",
+            "content_type": file.content_type or "unknown",
             "extracted_text": extracted_text,
             "extracted_bullets": bullets,
-            "bullet_count": len(bullets)
+            "bullet_count": len(bullets),
         }
 
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))
 
     except Exception as error:
+        traceback.print_exc()
         raise HTTPException(
             status_code=500,
             detail=f"Failed to process resume file: {str(error)}"
@@ -158,4 +177,16 @@ def analyze_resume(request: ResumeRequest):
         polished_bullets=polished,
         job_matches=jobs,
         summary_feedback=summary_feedback,
+    )
+
+@app.post("/api/v1/download-report")
+def download_report(payload: dict):
+    pdf_bytes = generate_resume_report_pdf(payload)
+
+    return StreamingResponse(
+        BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": "attachment; filename=resume-polisher-report.pdf"
+        },
     )
