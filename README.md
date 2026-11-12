@@ -1,188 +1,93 @@
 # Resume Polisher AI
 
-AI-powered resume optimization and job matching application.
+A full-stack web app that reviews a resume against a target role: it pulls out the bullet
+points, scores each one, suggests a stronger rewrite, and ranks sample job postings by how
+well they match.
 
-## Overview
+**Stack:** React (Vite) · FastAPI · scikit-learn · PyMuPDF / python-docx · ReportLab · Docker Compose
 
-Resume Polisher AI helps users improve resume bullet points for a target role. Users paste their resume, select job preferences, and receive polished bullet points, feedback, scoring, and suggested job matches.
+## What it does
 
-## Features
-
-- Resume text input
-- Target role, location, work type, and work mode selection
-- Resume bullet extraction
-- Bullet quality scoring
-- Resume bullet rewriting
-- Resume improvement feedback
-- Sample job matching
-- Downloadable result file
-- Dockerized frontend and backend
-
-## Tech Stack
-
-### Frontend
-
-- React
-- Vite
-- CSS
-
-### Backend
-
-- Python
-- FastAPI
-- Pydantic
-- Uvicorn
-
-### ML / NLP Logic
-
-- Rule-based bullet extraction
-- Resume scoring heuristics
-- TF-IDF vector-based job matching
-- Cosine similarity ranking
-- Skill gap feedback
-- Deterministic bullet rewriting baseline
-
-### DevOps
-
-- Docker
-- Docker Compose
-
-## Project Structure
+1. **Upload or paste a resume** (PDF, DOCX or plain text) and choose a target role, location,
+   work type and work mode.
+2. **Extract bullet points** with a rule-based parser that recognises section headings and
+   bullet markers.
+3. **Score each bullet** on action verbs, measurable results and role keywords.
+4. **Rewrite weak bullets** with a deterministic baseline, plus feedback on what to fix.
+5. **Match jobs**: rank a set of sample postings by TF-IDF cosine similarity to the resume
+   and list the skills each posting asks for that the resume does not mention.
+6. **Download a PDF report** of the scores, rewrites and matches.
 
 ```text
-resume-polisher-ai/
-├── backend/
-│   ├── app/
-│   │   ├── main.py
-│   │   ├── schemas.py
-│   │   └── services/
-│   │       ├── resume_parser.py
-│   │       ├── resume_scorer.py
-│   │       ├── bullet_polisher.py
-│   │       └── job_matcher.py
-│   ├── tests/
-│   ├── Dockerfile
-│   ├── .dockerignore
-│   └── requirements.txt
-├── frontend/
-│   ├── src/
-│   │   ├── App.jsx
-│   │   └── App.css
-│   ├── Dockerfile
-│   ├── .dockerignore
-│   └── package.json
-├── docker-compose.yml
-├── README.md
-└── .gitignore
+React frontend → FastAPI → parse → score → rewrite → match jobs → JSON / PDF report
 ```
 
-## API Endpoints
+## Run it
 
-```text
-GET  /health
-POST /api/v1/extract-bullets
-POST /api/v1/score-resume
-POST /api/v1/polish-bullets
-POST /api/v1/match-jobs
-POST /api/v1/analyze
-```
-
-## Run Locally
-
-### Backend
-
-```bash
-cd backend
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-```
-
-Backend API:
-
-```text
-http://127.0.0.1:8000/docs
-```
-
-### Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Frontend:
-
-```text
-http://localhost:5173/
-```
-
-## Run with Docker
-
-From the project root:
+With Docker (from the project root):
 
 ```bash
 docker compose up --build
 ```
 
-Frontend:
+- App: http://localhost:5173
+- API docs: http://localhost:8000/docs
 
-```text
-http://localhost:5173
-```
-
-Backend API:
-
-```text
-http://localhost:8000/docs
-```
-
-Stop containers:
+Without Docker:
 
 ```bash
-docker compose down
+# backend
+cd backend
+python -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+
+# frontend (second terminal)
+cd frontend
+npm install
+npm run dev
 ```
 
-## System Flow
+Tests: `cd backend && pytest -q`
+
+## API
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/health` | Health check |
+| POST | `/api/v1/upload-resume` | Extract text from a PDF or DOCX |
+| POST | `/api/v1/extract-bullets` | Find bullet points in resume text |
+| POST | `/api/v1/score-resume` | Score a list of bullets |
+| POST | `/api/v1/polish-bullets` | Suggest rewrites |
+| POST | `/api/v1/match-jobs` | Rank sample jobs by similarity |
+| POST | `/api/v1/analyze` | Run the full pipeline in one call |
+| POST | `/api/v1/download-report` | Return the results as a PDF |
+
+## Project layout
 
 ```text
-User Input
-   ↓
-React Frontend
-   ↓
-FastAPI Backend
-   ↓
-Resume Parser
-   ↓
-Bullet Scorer
-   ↓
-Bullet Polisher
-   ↓
-Job Matcher
-   ↓
-JSON Response
-   ↓
-Frontend Output + Download
+backend/app/
+  main.py                 FastAPI routes
+  schemas.py              request and response models
+  services/
+    document_parser.py    PDF / DOCX text extraction
+    resume_parser.py      bullet extraction
+    resume_scorer.py      bullet scoring
+    bullet_polisher.py    rewrite suggestions
+    job_matcher.py        TF-IDF job matching and skill gaps
+    pdf_report.py         PDF report
+backend/tests/            API tests (pytest)
+frontend/src/             React interface
 ```
 
-## Current Status
+## Limitations
 
-The current version is a full-stack MVP. It supports PDF/DOCX resume upload, text extraction, bullet extraction, scoring, rewriting, feedback generation, TF-IDF vector-based job matching, Dockerized local execution, and result download.
+- Scoring and rewriting are rule-based baselines, not a trained or LLM model.
+- Job matching runs against a built-in set of sample postings, not live listings.
 
-## Planned Improvements
+## Next steps
 
-- PDF and DOCX resume upload
-- Resume section extraction
-- Transformer embedding job matching
-- Vector database retrieval
-- LLM-based bullet rewriting
-- Skill gap analysis
-- User authentication
-- CI/CD pipeline
-- Kubernetes orchestration
-
-## ML Engineering Focus
-
-This project demonstrates full-stack ML application development, API design, NLP preprocessing, rule-based ML baselines, resume scoring, job matching, containerization, and deployment preparation.
+- Replace TF-IDF with sentence embeddings for job matching.
+- Add an LLM rewriting option and compare it with the rule-based baseline.
+- Connect a real job source and add continuous integration.
